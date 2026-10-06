@@ -1,0 +1,6 @@
+{
+  "name": "decision-tracker",
+  "version": "0.1.0",
+  "description": "Logs the agent's judgement calls in a side pane, each expandable, with Clarify and Challenge buttons that put the choice back to the agent",
+  "types": "./types/index.d.ts"
+}
