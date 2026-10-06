@@ -9,6 +9,7 @@ import type {
   ReviewKind,
   ReviewOutcome,
   Reversibility,
+  RowMessage,
 } from '../types'
 
 const PANE = 'decisions'
@@ -21,6 +22,7 @@ const seq = atom({ plugin: 'decision-tracker', key: 'seq' } as const, 0)
 const openId = atom({ plugin: 'decision-tracker', key: 'openId' } as const, null)
 const turn = atom({ plugin: 'decision-tracker', key: 'turn' } as const, null)
 const isDismissed = atom({ plugin: 'decision-tracker', key: 'isDismissed' } as const, false)
+const lastAcknowledged = atom({ plugin: 'decision-tracker', key: 'lastAcknowledged' } as const, null)
 
 const CONFIDENCE: readonly Confidence[] = ['low', 'medium', 'high']
 const REVERSIBILITY: readonly Reversibility[] = ['easy', 'moderate', 'hard']
@@ -234,11 +236,41 @@ async function send(
   await $.prompt.submit({ text, asUser: true })
 }
 
-// Takes a decision the person accepts off the list; ids are not reused.
+const toggle = ($: EngineInterface, id: string) =>
+  update($, openId, current => (current === id ? null : id))
+
+// Takes a decision the person accepts off the list, keeping it for Undo; ids
+// are not reused.
 async function acknowledge($: EngineInterface, id: string): Promise<void> {
+  const list = await read($, decisions)
+  const index = list.findIndex(one => one.id === id)
+  const decision = list[index]
+  if (decision === undefined) return
+
   drafts.delete(id)
-  await update($, decisions, list => list.filter(one => one.id !== id))
+  await update($, lastAcknowledged, () => ({ decision, index }))
+  await update($, decisions, all => all.filter(one => one.id !== id))
   await update($, openId, current => (current === id ? null : current))
+  await refreshStatus($)
+}
+
+// Puts the last acknowledged decision back where it stood. Only appends
+// happen in between (a clear drops it), so its index still holds.
+async function undo($: EngineInterface): Promise<void> {
+  const last = await read($, lastAcknowledged)
+  if (last === null) return
+
+  await update($, lastAcknowledged, () => null)
+  await update($, decisions, list =>
+    list.some(one => one.id === last.decision.id) ? list : list.toSpliced(last.index, 0, last.decision),
+  )
+  await refreshStatus($)
+}
+
+async function clear($: EngineInterface): Promise<void> {
+  await update($, decisions, () => [])
+  await update($, openId, () => null)
+  await update($, lastAcknowledged, () => null)
   await refreshStatus($)
 }
 
@@ -289,20 +321,14 @@ export const register: Register = on => {
   })
 
   on('session.end', async ($, e, next) => {
-    if (e.reason === 'clear') {
-      await update($, decisions, () => [])
-      await update($, openId, () => null)
-      await refreshStatus($)
-    }
+    if (e.reason === 'clear') await clear($)
 
     return next(e)
   })
 
   on('command.run', { command: 'decisions' }, async ($, e) => {
     if (e.args.trim() === 'clear') {
-      await update($, decisions, () => [])
-      await update($, openId, () => null)
-      await refreshStatus($)
+      await clear($)
 
       return { text: 'Decision log cleared.' }
     }
@@ -437,13 +463,32 @@ export const register: Register = on => {
     return { result: `Recorded your "${outcome}" answer on ${id}.` }
   })
 
+  // A row's summary posts here (row.tsx): a click toggles, a right-click acknowledges.
+  on('ui.message', { requestId: 'decisions' }, async ($, e, next) => {
+    const { id, action } = (e.data ?? {}) as Partial<RowMessage>
+
+    if (typeof id === 'string' && action === 'toggle') await toggle($, id)
+    if (typeof id === 'string' && action === 'acknowledge') await acknowledge($, id)
+
+    return next(e)
+  })
+
   on('ui.render', { component: 'Pane', requestId: 'decisions' }, async ($, e) => {
     const elements = $.ui.resolve(e)
     const { Box, Text, Button } = elements
     const Input = 'Input' in elements ? elements.Input : undefined
+    const Client = 'Client' in elements ? elements.Client : undefined
     const list = await read($, decisions)
     const open = await read($, openId)
+    const last = await read($, lastAcknowledged)
     const width = Math.max(24, e.props.bodyColumns)
+
+    const undoRow = last !== null && (
+      <Box flexDirection="row" gap={1}>
+        <Text dimColor>{`Acknowledged ${last.decision.id}`}</Text>
+        <Button key="undo" label="Undo" onPress={() => undo($)} />
+      </Box>
+    )
 
     if (list.length === 0) {
       return (
@@ -451,8 +496,10 @@ export const register: Register = on => {
           <Text bold>No decisions yet</Text>
           <Text dimColor>
             Judgement calls the agent makes show up here as it works, most usefully in auto
-            mode. Select one to see its reasoning, then Clarify, Challenge or Acknowledge it.
+            mode. Select one to see its reasoning, then Clarify, Challenge or Acknowledge it,
+            or right-click one to acknowledge it.
           </Text>
+          {undoRow}
         </Box>
       )
     }
@@ -481,19 +528,38 @@ export const register: Register = on => {
       return { glyph: '•', color: 'subtle' }
     }
 
+    // Where a Client draws, the summary is one so it hears right-clicks; the
+    // arrow stays a Button so the pane's focus ring still reaches every row.
     const row = (decision: Decision, isOpen: boolean) => {
       const mark = markOf(decision)
+      const isReplaced = supersededBy.has(decision.id)
+      const arrow = isOpen ? '▾' : '▸'
+      const label = `${decision.id}  ${decision.summary}`
+      const toggleButton = (text: string) => (
+        <Button
+          plain
+          key={`toggle:${decision.id}`}
+          label={text}
+          dimColor={isReplaced}
+          onPress={() => toggle($, decision.id)}
+        />
+      )
 
       return (
         <Box flexDirection="row">
           <Text color={mark.color}>{mark.glyph} </Text>
-          <Button
-            plain
-            key={`toggle:${decision.id}`}
-            label={clip(`${isOpen ? '▾' : '▸'} ${decision.id}  ${decision.summary}`, width - 3)}
-            dimColor={supersededBy.has(decision.id)}
-            onPress={() => update($, openId, current => (current === decision.id ? null : decision.id))}
-          />
+          {Client === undefined ? (
+            toggleButton(clip(`${arrow} ${label}`, width - 3))
+          ) : (
+            <Box flexDirection="row" gap={1}>
+              {toggleButton(arrow)}
+              <Client
+                key={`row:${decision.id}`}
+                module="./row.tsx"
+                props={{ id: decision.id, label: clip(label, width - 5), isDim: isReplaced }}
+              />
+            </Box>
+          )}
         </Box>
       )
     }
@@ -604,6 +670,7 @@ export const register: Register = on => {
           {plural(list.length, 'decision')}
           {awaiting > 0 ? ` · ${awaiting} awaiting reply` : ''}
         </Text>
+        {undoRow}
         {[...list].reverse().map(decision =>
           decision.id === open ? card(decision) : row(decision, false),
         )}

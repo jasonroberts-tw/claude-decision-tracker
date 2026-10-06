@@ -47,6 +47,12 @@ export type Decision = {
 /** The main loop's running turn, if any. */
 export type Turn = { id: string; prompt: string }
 
+/** The decision last taken off the list, and where it stood, for Undo. */
+export type Acknowledged = { decision: Decision; index: number }
+
+/** What a row's surface module posts: a click toggles, a right-click acknowledges. */
+export type RowMessage = { id: string; action: 'toggle' | 'acknowledge' }
+
 declare module 'claude-code' {
   interface PluginState {
     'decision-tracker': {
@@ -55,6 +61,7 @@ declare module 'claude-code' {
       openId: string | null
       turn: Turn | null
       isDismissed: boolean
+      lastAcknowledged: Acknowledged | null
     }
   }
 }

@@ -74,7 +74,7 @@ test('a logged decision lists, expands, is challenged and shows the answer', asy
 
   for (const surface of SURFACES) {
     const ui = await $.ui.mount({ ...PANE, surface })
-    expect((await ui.find({ key: 'toggle:D1' }))?.text).toContain('D1  Read the budget sheet')
+    expect(await ui.find({ text: /D1  Read the budget sheet/, in: 'row:D1' })).toBeDefined()
     expect(await ui.find({ key: 'challenge:D1' })).toBeUndefined()
     await ui.unmount()
   }
@@ -117,7 +117,7 @@ test('acknowledging a decision takes it off the list', async ($, on) => {
   await ui.press({ key: 'toggle:D1' })
   await ui.press({ key: 'acknowledge:D1' })
   expect(await ui.find({ key: 'toggle:D1' })).toBeUndefined()
-  expect((await ui.find({ key: 'toggle:D2' }))?.text).toContain('Keep the report in Markdown')
+  expect(await ui.find({ text: /Keep the report in Markdown/, in: 'row:D2' })).toBeDefined()
   expect(await ui.find({ text: /^1 decision$/ })).toBeDefined()
   expect(prompts).toHaveLength(0)
 
@@ -125,6 +125,35 @@ test('acknowledging a decision takes it off the list', async ($, on) => {
   const logged = await $.tool.call({ tool: RECORD, ...DECISION })
   expect(String(logged.result)).toContain('Logged as D3')
   await ui.unmount()
+})
+
+test('a right-click acknowledges a decision and Undo puts it back in place', async ($, on) => {
+  const { prompts } = world(on)
+  await $.session.start(start)
+  await $.tool.call({ tool: RECORD, ...DECISION })
+  await $.tool.call({ tool: RECORD, ...DECISION, summary: 'Keep the report in Markdown' })
+  await $.tool.call({ tool: RECORD, ...DECISION, summary: 'Chart with matplotlib' })
+  const rows = async (ui: { findAll: (q: { type: string }) => Promise<{ key: string | undefined }[]> }) =>
+    (await ui.findAll({ type: 'Client' })).map(found => found.key)
+
+  for (const surface of SURFACES) {
+    const ui = await $.ui.mount({ ...PANE, surface })
+    expect(await rows(ui)).toEqual(['row:D3', 'row:D2', 'row:D1'])
+
+    await ui.pointer({ type: 'down', x: 0, y: 0, button: 'left', in: 'row:D2' })
+    expect(await ui.find({ text: /pandas drops formulas/ })).toBeDefined()
+
+    await ui.pointer({ type: 'down', x: 0, y: 0, button: 'right', in: 'row:D2' })
+    expect(await rows(ui)).toEqual(['row:D3', 'row:D1'])
+    expect(await ui.find({ text: /pandas drops formulas/ })).toBeUndefined()
+    expect(await ui.find({ text: /Acknowledged D2/ })).toBeDefined()
+
+    await ui.press({ key: 'undo' })
+    expect(await rows(ui)).toEqual(['row:D3', 'row:D2', 'row:D1'])
+    expect(await ui.find({ key: 'undo' })).toBeUndefined()
+    await ui.unmount()
+  }
+  expect(prompts).toHaveLength(0)
 })
 
 test('a question typed mid-turn that the turn refuses is queued as a prompt', async ($, on) => {
