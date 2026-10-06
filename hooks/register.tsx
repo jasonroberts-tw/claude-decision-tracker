@@ -234,6 +234,14 @@ async function send(
   await $.prompt.submit({ text, asUser: true })
 }
 
+// Takes a decision the person accepts off the list; ids are not reused.
+async function acknowledge($: EngineInterface, id: string): Promise<void> {
+  drafts.delete(id)
+  await update($, decisions, list => list.filter(one => one.id !== id))
+  await update($, openId, current => (current === id ? null : current))
+  await refreshStatus($)
+}
+
 // Reviews slipped into a turn that ended without an answer go again, once, as
 // a prompt of their own.
 async function followUp($: EngineInterface): Promise<void> {
@@ -443,7 +451,7 @@ export const register: Register = on => {
           <Text bold>No decisions yet</Text>
           <Text dimColor>
             Judgement calls the agent makes show up here as it works, most usefully in auto
-            mode. Select one to see its reasoning, then Clarify or Challenge it.
+            mode. Select one to see its reasoning, then Clarify, Challenge or Acknowledge it.
           </Text>
         </Box>
       )
@@ -577,6 +585,11 @@ export const register: Register = on => {
                   key={`challenge:${decision.id}`}
                   label="Challenge"
                   onPress={() => send($, decision.id, 'challenge')}
+                />
+                <Button
+                  key={`acknowledge:${decision.id}`}
+                  label="Acknowledge"
+                  onPress={() => acknowledge($, decision.id)}
                 />
               </Box>
             </Box>

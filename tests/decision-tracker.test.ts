@@ -107,6 +107,26 @@ test('a logged decision lists, expands, is challenged and shows the answer', asy
   }
 })
 
+test('acknowledging a decision takes it off the list', async ($, on) => {
+  const { prompts } = world(on)
+  await $.session.start(start)
+  await $.tool.call({ tool: RECORD, ...DECISION })
+  await $.tool.call({ tool: RECORD, ...DECISION, summary: 'Keep the report in Markdown' })
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  await ui.press({ key: 'toggle:D1' })
+  await ui.press({ key: 'acknowledge:D1' })
+  expect(await ui.find({ key: 'toggle:D1' })).toBeUndefined()
+  expect((await ui.find({ key: 'toggle:D2' }))?.text).toContain('Keep the report in Markdown')
+  expect(await ui.find({ text: /^1 decision$/ })).toBeDefined()
+  expect(prompts).toHaveLength(0)
+
+  // A later decision does not take the acknowledged one's id.
+  const logged = await $.tool.call({ tool: RECORD, ...DECISION })
+  expect(String(logged.result)).toContain('Logged as D3')
+  await ui.unmount()
+})
+
 test('a question typed mid-turn that the turn refuses is queued as a prompt', async ($, on) => {
   const { clock, prompts, toasts } = world(on)
   await $.session.start(start)
