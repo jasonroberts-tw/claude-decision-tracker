@@ -546,7 +546,8 @@ export const register: Register = on => {
 
       const glyph = <Text color={mark.color}>{mark.glyph} </Text>
 
-      if (!('Client' in elements)) {
+      // Only the terminal's and the desktop's tables have Client.
+      if (e.surface !== 'terminal' && e.surface !== 'desktop') {
         return (
           <Box flexDirection="row">
             {glyph}
@@ -555,9 +556,9 @@ export const register: Register = on => {
         )
       }
 
-      // Destructured and only ever written as a tag, never passed around as a
-      // value, so the directory can read which module it loads off the source.
-      const { Client } = elements
+      // Taken straight from $.ui.resolve and only ever written as a tag, so the
+      // directory can read which module it loads off the source.
+      const { Client } = $.ui.resolve(e)
 
       return (
         <Box flexDirection="row">
