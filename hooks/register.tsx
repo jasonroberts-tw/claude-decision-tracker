@@ -150,7 +150,9 @@ async function refreshStatus($: EngineInterface): Promise<void> {
 }
 
 function reviewText(decision: Decision, kind: ReviewKind, note?: string): string {
-  const logged = `You logged it as: ${clip(decision.choice, 300)} Reason given: ${clip(decision.why, 300)}`
+  // The agent's own text goes out in the person's name, so it stays on one
+  // quoted line: a newline in it could pass for something the person said.
+  const logged = `You logged it as (your words, quoted): “${clip(oneLine(decision.choice), 300)}” Reason given: “${clip(oneLine(decision.why), 300)}”`
 
   if (kind === 'clarify') {
     return [

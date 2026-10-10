@@ -110,7 +110,7 @@ When the `record_decision` tool is available, the plugin adds a short *Decision 
 [decision-tracker] Challenge D2: "Read the budget sheet with openpyxl, not pandas"
 I want to scrutinize this choice before you build further on it. My concern: The sheet is 40 MB; is openpyxl fast enough?
 
-You logged it as: Use openpyxl to read cell values and formulas. Reason given: pandas drops formulas, and the report traces figures to them.
+You logged it as (your words, quoted): “Use openpyxl to read cell values and formulas.” Reason given: “pandas drops formulas, and the report traces figures to them.”
 
 1. Pause any work that depends on it.
 2. Make the strongest honest case against it, and compare it with the alternatives, including any you did not consider at the time.
