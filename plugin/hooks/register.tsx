@@ -556,20 +556,18 @@ export const register: Register = on => {
         )
       }
 
-      // Taken straight from $.ui.resolve and only ever written as a tag, so the
-      // directory can read which module it loads off the source.
-      const { Client } = $.ui.resolve(e)
-
+      // Called in place with its module path, never bound to a name: the
+      // directory refuses any Client it sees without a fixed path beside it.
       return (
         <Box flexDirection="row">
           {glyph}
           <Box flexDirection="row" gap={1}>
             {toggleButton(arrow)}
-            <Client
-              key={`row:${decision.id}`}
-              module="./row.tsx"
-              props={{ id: decision.id, label: clip(label, width - 5), isDim: isReplaced }}
-            />
+            {$.ui.resolve(e).Client({
+              key: `row:${decision.id}`,
+              module: './row.tsx',
+              props: { id: decision.id, label: clip(label, width - 5), isDim: isReplaced },
+            })}
           </Box>
         </Box>
       )
