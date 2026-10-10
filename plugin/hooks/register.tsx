@@ -479,7 +479,6 @@ export const register: Register = on => {
     const elements = $.ui.resolve(e)
     const { Box, Text, Button } = elements
     const Input = 'Input' in elements ? elements.Input : undefined
-    const Client = 'Client' in elements ? elements.Client : undefined
     const list = await read($, decisions)
     const open = await read($, openId)
     const last = await read($, lastAcknowledged)
@@ -547,21 +546,31 @@ export const register: Register = on => {
         />
       )
 
+      const glyph = <Text color={mark.color}>{mark.glyph} </Text>
+
+      // Only the terminal's and the desktop's tables have Client.
+      if (e.surface !== 'terminal' && e.surface !== 'desktop') {
+        return (
+          <Box flexDirection="row">
+            {glyph}
+            {toggleButton(clip(`${arrow} ${label}`, width - 3))}
+          </Box>
+        )
+      }
+
+      // Called in place with its module path, never bound to a name: the
+      // directory refuses any Client it sees without a fixed path beside it.
       return (
         <Box flexDirection="row">
-          <Text color={mark.color}>{mark.glyph} </Text>
-          {Client === undefined ? (
-            toggleButton(clip(`${arrow} ${label}`, width - 3))
-          ) : (
-            <Box flexDirection="row" gap={1}>
-              {toggleButton(arrow)}
-              <Client
-                key={`row:${decision.id}`}
-                module="./row.tsx"
-                props={{ id: decision.id, label: clip(label, width - 5), isDim: isReplaced }}
-              />
-            </Box>
-          )}
+          {glyph}
+          <Box flexDirection="row" gap={1}>
+            {toggleButton(arrow)}
+            {$.ui.resolve(e).Client({
+              key: `row:${decision.id}`,
+              module: './row.tsx',
+              props: { id: decision.id, label: clip(label, width - 5), isDim: isReplaced },
+            })}
+          </Box>
         </Box>
       )
     }

@@ -40,7 +40,7 @@ The script runs `claude plugin validate` on `plugin/` first and stops if it fail
 
 ## Development
 
-Everything in `plugin/` ships to people who install the plugin, and nothing outside it does.
+Everything in `plugin/` except `tests/` and `tsconfig.json` ships to people who install the plugin, by way of the `release` branch, and nothing outside it does.
 
 | Path                        | Contents                                                             |
 | --------------------------- | -------------------------------------------------------------------- |
@@ -50,6 +50,8 @@ Everything in `plugin/` ships to people who install the plugin, and nothing outs
 | `plugin/tests/`             | Tests written with the `claude-code/testing` kit                     |
 | `plugin/README.md`          | The user guide, shown as the directory listing                       |
 | `deploy.ps1`                | Validates the plugin and installs it into a plugin folder            |
+| `release.ps1`               | Builds and pushes the `release` branch the plugin directory tracks   |
+| `.github/workflows/`        | Runs `release.ps1` on GitHub: by hand to release, as a dry run on push |
 | `.claude/`, `docs/agents/`  | Instructions for agents working on this repository                   |
 
 `LICENSE` is copied into `plugin/` so it ships with the plugin. Keep the two copies the same.
@@ -66,3 +68,23 @@ pre-push hook to the clone's git config (needs Git 2.54 or later):
 git config set hook.plugin-test.command "claude plugin test ./plugin"
 git config set --append hook.plugin-test.event pre-push
 ```
+
+## Releasing
+
+Anthropic's plugin directory tracks the `release` branch, not `main`. That branch holds the plugin at its root, without `tests/` or `tsconfig.json`, so the directory scans only what people install. Don't commit to it directly: each release replaces its contents with `plugin/`.
+
+To release, raise `version` in `plugin/.claude-plugin/plugin.json` and merge it to `main`. Then run the **Release** workflow from `main`, either from the repository's **Actions** tab (**Release > Run workflow**) or with:
+
+```sh
+gh workflow run release.yml          # release main as it stands
+gh workflow run release.yml -f dry-run=true   # say what would be released, and change nothing
+```
+
+The workflow runs `release.ps1`, which you can also run yourself from a clean clone (PowerShell 7.2 or later):
+
+```powershell
+./release.ps1            # validates, tests, commits plugin/ as at HEAD to release and pushes it
+./release.ps1 -DryRun    # says what it would release, and changes nothing
+```
+
+The script stops if `plugin/` has uncommitted changes, if validation or the tests fail, or if `version` matches the one already released. Every push that touches `plugin/`, `release.ps1` or the workflow also runs the workflow as a dry run. If the shipped files changed but `version` didn't, that run warns instead of failing.
