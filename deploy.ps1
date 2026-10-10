@@ -10,13 +10,15 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-claude plugin validate $PSScriptRoot
+$plugin = Join-Path $PSScriptRoot 'plugin'
+
+claude plugin validate $plugin
 if ($LASTEXITCODE -ne 0) { throw 'Plugin validation failed; nothing deployed.' }
 
 foreach ($path in '.claude-plugin/plugin.json', 'hooks', 'types') {
     $parent = Split-Path (Join-Path $Destination $path)
     New-Item -ItemType Directory -Force -Path $parent | Out-Null
-    Copy-Item -Recurse -Force -Path (Join-Path $PSScriptRoot $path) -Destination $parent
+    Copy-Item -Recurse -Force -Path (Join-Path $plugin $path) -Destination $parent
 }
 
 Write-Host "Deployed decision-tracker to $Destination"
