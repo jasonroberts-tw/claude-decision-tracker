@@ -132,3 +132,7 @@ Decision Tracker runs entirely inside Claude Code. It writes no files, makes no 
 - The *Decision log* section of the system prompt, and the `record_decision` and `answer_review` tools, which it keeps out of tool search so they're always listed.
 - A Clarify or Challenge message when you press one of those buttons. It's submitted as your prompt, or added to the running turn if the agent is busy, with a line in the transcript saying so.
 - One follow-up prompt, also in your name, that repeats any Clarify or Challenge the agent left unanswered when its turn ended.
+
+**What those prompts contain.** A Clarify or Challenge prompt holds the decision's id and summary, the choice and reason the agent logged (each cut to 300 characters), the note you typed if any, and fixed instructions. A Clarify asks the agent to explain what it knew, weighed and assumed. A Challenge asks for the four steps in the [example above](#what-the-agent-is-told). Both ask the agent to record its answer with `answer_review`. The follow-up prompt repeats unanswered ones after a line asking the agent to answer them. Nothing else goes into them: no file contents, and nothing from outside your session.
+
+**The tools it answers.** The plugin handles calls to its own two tools, `record_decision` and `answer_review`, itself: it stores what the agent sends and replies with a short confirmation, or says what's wrong with the call, such as a missing field or an unknown id. It never intercepts, blocks or changes calls to any other tool.
