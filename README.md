@@ -9,7 +9,7 @@
 
 See the judgement calls Claude made while you weren't watching, and push back on the ones that matter.
 
-[Overview](#overview) • [Install](#install) • [Usage](#usage) • [What the agent is told](#what-the-agent-is-told) • [Development](#development)
+[Overview](#overview) • [Install](#install) • [Usage](#usage) • [What the agent is told](#what-the-agent-is-told) • [Data and privacy](#data-and-privacy) • [Development](#development)
 
 </div>
 
@@ -32,16 +32,22 @@ Decision Tracker is a Claude Code plugin that has the agent log its own judgemen
 
 ## Install
 
-You need Claude Code (built and tested with 2.1.296) and, for the deploy script, PowerShell 7 or later.
+You need Claude Code 2.1.287 or later (built and tested with 2.1.296), in the terminal or the Code tab of the Claude Desktop app. The pane doesn't show in the VS Code extension's chat panel or with `claude -p`, and the plugin does nothing in claude.ai chat or Cowork.
 
-### Try it for one session
+### From the plugin directory
+
+Once Decision Tracker is listed in Anthropic's plugin directory, run `/plugin directory` in Claude Code and install it from there. You can also add it from **Customize > Plugins > Discover** on claude.ai, and it reaches Claude Code at the next session start.
+
+### From source
+
+To try it for one session:
 
 ```sh
 git clone https://github.com/jasonroberts-tw/claude-decision-tracker.git
 claude --plugin-dir ./claude-decision-tracker
 ```
 
-### Install for every session
+To install it for every session, run the deploy script, which needs PowerShell 7 or later:
 
 ```powershell
 ./deploy.ps1                          # installs to ~/.claude-global/decision-tracker
@@ -135,6 +141,18 @@ Then call mcp__decision-tracker__answer_review with id "D2", outcome "keep" or "
 ```
 
 </details>
+
+## Data and privacy
+
+Decision Tracker runs entirely inside Claude Code. It writes no files, makes no network requests, starts no processes and makes no model calls of its own. To check, run `claude plugin validate .` in a clone: it lists every hook the plugin registers and every Claude Code call it makes.
+
+**What it keeps.** The decisions the agent records, your Clarify and Challenge notes, the agent's replies, and the prompt of the turn each decision was made in. They're held in the plugin's session state, which Claude Code discards when the session ends or when you run `/clear`, `/resume` or `/branch`. `/decisions clear` empties it sooner.
+
+**What it adds to your conversation.** Everything it sends goes to the agent in your own session, the way your own prompts do:
+
+- The *Decision log* section of the system prompt, and the `record_decision` and `answer_review` tools, which it keeps out of tool search so they're always listed.
+- A Clarify or Challenge message when you press one of those buttons. It's submitted as your prompt, or added to the running turn if the agent is busy, with a line in the transcript saying so.
+- One follow-up prompt, also in your name, that repeats any Clarify or Challenge the agent left unanswered when its turn ended.
 
 ## Development
 
