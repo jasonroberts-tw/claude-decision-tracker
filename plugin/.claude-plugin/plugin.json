@@ -6,5 +6,6 @@
   "description": "Logs the agent's judgement calls in a side pane, each expandable, with Clarify and Challenge buttons that put the choice back to the agent",
   "license": "MIT",
   "repository": "https://github.com/jasonroberts-tw/claude-decision-tracker",
+  "privacyPolicyUrl": "https://github.com/jasonroberts-tw/claude-decision-tracker/blob/release/README.md#data-and-privacy",
   "types": "./types/index.d.ts"
 }
