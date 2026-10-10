@@ -2,3 +2,6 @@
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Type declarations Claude Code generates for the build it runs
+plugin/.claude-plugin/types/
