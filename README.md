@@ -150,3 +150,11 @@ Then call mcp__decision-tracker__answer_review with id "D2", outcome "keep" or "
 claude plugin test .       # run the tests
 claude plugin validate .   # check the manifest and hooks
 ```
+
+To run the tests before every push and stop the push when they fail, add a
+pre-push hook to the clone's git config (needs Git 2.54 or later):
+
+```sh
+git config set hook.plugin-test.command "claude plugin test ."
+git config set --append hook.plugin-test.event pre-push
+```

@@ -158,6 +158,9 @@ test('a right-click acknowledges a decision and Undo puts it back in place', asy
 
 test('a question typed mid-turn that the turn refuses is queued as a prompt', async ($, on) => {
   const { clock, prompts, toasts } = world(on)
+  // The running turn refuses the plugin's row: the plugin falls back to a
+  // prompt of its own.
+  on('session.append', { door: 'note' }, () => ({ deny: 'the turn takes no rows' }))
   await $.session.start(start)
 
   await $.turn.start({ text: 'build the report', turnId: 't1' })
@@ -174,8 +177,6 @@ test('a question typed mid-turn that the turn refuses is queued as a prompt', as
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
   await ui.input({ key: 'note:D1', text: 'Why not keep both?' })
 
-  // The kit's session.append has no store beneath it and rejects, as a turn
-  // refusing the row would: the plugin falls back to a prompt of its own.
   expect(toasts).toEqual(['Clarify D1 queued; it goes to the agent when this turn ends'])
   expect(prompts).toHaveLength(1)
   expect(prompts[0]).toContain('[decision-tracker] Clarify D1')
