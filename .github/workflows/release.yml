@@ -1,0 +1,58 @@
+# Cuts the release branch that Anthropic's plugin directory tracks by running
+# release.ps1 on GitHub's runners. Run it by hand to release. Every push that
+# touches the plugin or the release script runs a dry run, which validates,
+# tests and builds the release without pushing it.
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: Say what would be released, and change nothing
+        type: boolean
+        default: false
+  push:
+    branches-ignore: [release]
+    paths:
+      - plugin/**
+      - release.ps1
+      - .github/workflows/release.yml
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  dry-run:
+    if: github.event_name == 'push' || inputs.dry-run
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Install Claude Code
+        run: npm install --global @anthropic-ai/claude-code@2.1.296
+      - name: Dry run
+        shell: pwsh
+        run: ./release.ps1 -DryRun
+
+  release:
+    if: github.event_name == 'workflow_dispatch' && !inputs.dry-run
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Install Claude Code
+        run: npm install --global @anthropic-ai/claude-code@2.1.296
+      - name: Name the release commit's author
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+      - name: Release
+        shell: pwsh
+        run: ./release.ps1

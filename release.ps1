@@ -6,6 +6,9 @@
 #
 #   ./release.ps1            # validate, test, commit to release and push it
 #   ./release.ps1 -DryRun    # say what it would release, and change nothing
+#
+# .github/workflows/release.yml runs it on GitHub: by hand to release, and as a
+# dry run on every push that touches the plugin.
 param(
     [switch]$DryRun
 )
@@ -51,7 +54,12 @@ if ($parent) {
 
     $released = ((Invoke-Git show "${parent}:.claude-plugin/plugin.json") -join "`n" | ConvertFrom-Json).version
     if ($released -eq $version) {
-        throw "origin/release is already version $version. Raise version in plugin/.claude-plugin/plugin.json and commit it first."
+        $problem = "origin/release is already version $version. Raise version in plugin/.claude-plugin/plugin.json and commit it first."
+        if (-not $DryRun) { throw $problem }
+
+        # A dry run only warns, so a push that isn't a release yet doesn't fail.
+        if ($env:GITHUB_ACTIONS -eq 'true') { Write-Host "::warning::$problem" } else { Write-Warning $problem }
+        return
     }
 }
 
